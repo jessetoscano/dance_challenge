@@ -10,7 +10,6 @@ import pygame
 import pgzero
 from pgzero.builtins import Actor
 from random import randint
-import smtplib, ssl
 from pygame.locals import *
 import time
 from sys import exit
@@ -36,6 +35,7 @@ say_dance = False  # Flag to display "Dance!" text
 show_countdown = True  # Flag to display the countdown
 moves_complete = False  # Tracks completion of moves
 game_over = False  # Flag to end the game
+winner_name = "" # Stores the name of the winner
 
 player1_name = ""  # Name for Player 1
 player2_name = ""  # Name for Player 2
@@ -123,7 +123,7 @@ def get_player_names_gui():
 def draw():
     global game_over, score, say_dance
     global count, show_countdown, score1
-    global rounds
+    global rounds, winner_name
     if not game_over:
         # Render background, dancer, arrows, scores, and prompts
         screen.clear()
@@ -152,7 +152,6 @@ def draw():
                 screen.draw.text(f"{player2_name}'s turn", color="blue",
                                  topleft=(CENTER_X - 100, 100), fontsize=50)
                 
-                
     else:
         # Display game over screen with final scores
         screen.clear()
@@ -161,9 +160,17 @@ def draw():
                          str(score), color="black",
                          topleft=(10, 10))
         screen.draw.text(f"Score for {player2_name}: " +
-                         str(score), color="black",
+                         str(score1), color="black",
                          topleft=(600, 10))
-        screen.draw.text("GAME OVER!", color="black",
+        
+        # Determine and display the winner
+        if winner_name:
+            winner_text = f"Winner is {winner_name}!"
+        else:
+            # Handle a tie
+            winner_text = "It's a Tie!"
+        
+        screen.draw.text(winner_text, color="black",
                          topleft=(CENTER_X - 130, 220), fontsize=60)
         
     return
@@ -171,7 +178,7 @@ def draw():
 # Resets the dancer and arrows to default state
 def reset_dancer():
     global game_over
-    if not game_over:   #for when the game is not over
+    if not game_over:  #for when the game is not over
         dancer.image = "dancer-start"
         up.image = "up"
         right.image = "right"
@@ -184,7 +191,7 @@ def update_dancer(move):
     global game_over
     if not game_over:
         # Changes images and schedules a reset after 0.5 seconds
-        if move == 0:   #if move is up, it changes to lit image of arrow, then changes dancer's position
+        if move == 0:  #if move is up, it changes to lit image of arrow, then changes dancer's position
             up.image = "up-lit"
             dancer.image = "dancer-up"
             clock.schedule(reset_dancer, 0.5)
@@ -262,111 +269,63 @@ def next_move():
         moves_complete = True
     return
 
-# Handles player input and updates scores/moves
+def check_player_input(key_map, move_key, player_score):
+    """
+    Checks if a keypress matches the current dance move.
+    
+    :param key_map: A dictionary mapping keypresses to move indices.
+    :param move_key: The key that was pressed.
+    :param player_score: The score to increment if the move is correct.
+    """
+    global score, score1, game_over, move_list, current_move, rounds, winner_name
+    
+    if move_key in key_map:
+        move_index = key_map[move_key]
+        update_dancer(move_index)
+        
+        if move_list[current_move] == move_index:
+            if player_score == 'score':
+                score += 1
+            else:
+                score1 += 1
+            next_move()
+        else:
+            game_over = True
+            # Determine the winner when the game ends
+            if score > score1:
+                winner_name = player1_name
+            elif score1 > score:
+                winner_name = player2_name
+            else:
+                winner_name = ""  # For a tie
+            
 def on_key_up(key):
-    # Checks player input and validates moves
-    global score, game_over, move_list, current_move
-    global score1, rounds
+    global rounds
     
-    if (rounds % 2 == 0):   #for player1(arrows), if key is press update dancer image
-        if key == keys.UP:
-            update_dancer(0)
-            if move_list[current_move] == 0:
-                if (rounds % 2 == 0):
-                    score = score + 1
-                    next_move()
-                else:
-                    score1 = score1 + 1
-                    next_move()
-            else:
-                game_over = True
-        
-        elif key == keys.RIGHT:
-            update_dancer(1)
-            if move_list[current_move] == 1:
-                if (rounds % 2 == 0):
-                    score = score + 1
-                    next_move()
-                else:
-                    score1 = score1 + 1
-                    next_move()
-            else:
-                game_over = True
-        
-        elif key == keys.DOWN:
-            update_dancer(2)
-            if move_list[current_move] == 2:
-                if (rounds % 2 == 0):
-                    score = score + 1
-                    next_move()
-                else:
-                    score1 = score1 + 1
-                    next_move()
-            else:
-                game_over = True
-        
-        elif key == keys.LEFT:
-            update_dancer(3)
-            if move_list[current_move] == 3:
-                if (rounds % 2 == 0):
-                    score = score + 1
-                    next_move()
-                else:
-                    score1 = score1 + 1
-                    next_move()
-            else:
-                game_over = True
-        return
+    print(f"Current round: {rounds}. Player turn: {'Player 1' if rounds % 2 == 0 else 'Player 2'}")
     
-    else:   #for player2(WASD), if key is press update dancer image
-        if key == keys.W:
-            update_dancer(0)
-            if move_list[current_move] == 0:
-                if (rounds % 2 == 0):
-                    score = score + 1
-                    next_move()
-                else:
-                    score1 = score1 + 1
-                    next_move()
-            else:
-                game_over = True
-        
-        elif key == keys.D:
-            update_dancer(1)
-            if move_list[current_move] == 1:
-                if (rounds % 2 == 0):
-                    score = score + 1
-                    next_move()
-                else:
-                    score1 = score1 + 1
-                    next_move()
-            else:
-                game_over = True
-        
-        elif key == keys.S:
-            update_dancer(2)
-            if move_list[current_move] == 2:
-                if (rounds % 2 == 0):
-                    score = score + 1
-                    next_move()
-                else:
-                    score1 = score1 + 1
-                    next_move()
-            else:
-                game_over = True
-        
-        elif key == keys.A:
-            update_dancer(3)
-            if move_list[current_move] == 3:
-                if (rounds % 2 == 0):
-                    score = score + 1
-                    next_move()
-                else:
-                    score1 = score1 + 1
-                    next_move()
-            else:
-                game_over = True
-        return
+    # Define key maps for each player
+    player1_keys = {
+        keys.UP: 0,
+        keys.RIGHT: 1,
+        keys.DOWN: 2,
+        keys.LEFT: 3
+    }
+    
+    player2_keys = {
+        keys.W: 0,
+        keys.D: 1,
+        keys.S: 2,
+        keys.A: 3
+    }
+
+    # Check input based on whose turn it is
+    if (rounds % 2 == 0):
+        # It's Player 1's turn
+        check_player_input(player1_keys, key, 'score')
+    else:
+        # It's Player 2's turn
+        check_player_input(player2_keys, key, 'score1')
 
 # Initialize game setup and play background music
 get_player_names_gui()        
@@ -390,5 +349,3 @@ def update():
 
 # Starts the game loop
 pgzrun.go()
-    
-    
