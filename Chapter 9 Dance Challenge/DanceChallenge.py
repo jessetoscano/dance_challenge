@@ -53,6 +53,28 @@ down.pos = CENTER_X, CENTER_Y + 230
 left = Actor("left")
 left.pos = CENTER_X - 60, CENTER_Y + 170
 
+# === [MODERN UI AND GAME FLOW ENHANCEMENTS] ===
+
+# A new function to reset all game variables for a new game
+def reset_game():
+    global score, score1, current_move, count, dance_length, rounds
+    global say_dance, show_countdown, moves_complete, game_over, winner_name
+
+    score = 0
+    score1 = 0
+    current_move = 0
+    count = 4
+    dance_length = 2
+    rounds = 0
+    say_dance = False
+    show_countdown = True
+    moves_complete = False
+    game_over = False
+    winner_name = ""
+    
+    generate_moves() # Start a new round of moves
+    music.play("vanishing-horizon") # Restart the music
+
 # GUI to get player names before the game starts
 def get_player_names_gui():
     global player1_name, player2_name
@@ -119,6 +141,7 @@ def get_player_names_gui():
         window.blit(text_surface2, (input_box2.x + 5, input_box2.y + 5))
         pygame.display.flip()
 
+
 # Main draw function to render game graphics
 def draw():
     global game_over, score, say_dance
@@ -133,12 +156,12 @@ def draw():
         down.draw()
         right.draw()
         left.draw()
-        screen.draw.text(f"Score for {player1_name}: " +
-                         str(score), color="black",
-                         topleft=(10, 10))
-        screen.draw.text(f"Score for {player2_name}: " +
-                         str(score1), color="black",
-                         topleft=(625, 10))
+        # [MODERN UI]: Use a stylish font and colors for scores
+        screen.draw.text(f"Score for {player1_name}: {score}", color="#FFD700", # Gold
+                         topleft=(10, 10), fontname="digital", fontsize=30)
+        screen.draw.text(f"Score for {player2_name}: {score1}", color="#40E0D0", # Turquoise
+                         topright=(WIDTH - 10, 10), fontname="digital", fontsize=30)
+        
         if say_dance:
             screen.draw.text("Dance!", color="black",
                              topleft=(CENTER_X - 55, 150), fontsize=50)
@@ -156,29 +179,32 @@ def draw():
         # Display game over screen with final scores
         screen.clear()
         screen.blit("stage", (0, 0))
-        screen.draw.text(f"Score for {player1_name}: " +
-                         str(score), color="black",
-                         topleft=(10, 10))
-        screen.draw.text(f"Score for {player2_name}: " +
-                         str(score1), color="black",
-                         topleft=(600, 10))
         
-        # Determine and display the winner
+        # [MODERN UI]: Display winner text with outline and final scores
+        screen.draw.text(f"Score for {player1_name}: {score}", color="#FFD700",
+                         topleft=(10, 10), fontname="digital", fontsize=30)
+        screen.draw.text(f"Score for {player2_name}: {score1}", color="#40E0D0",
+                         topright=(WIDTH - 10, 10), fontname="digital", fontsize=30)
+        
         if winner_name:
             winner_text = f"Winner is {winner_name}!"
         else:
-            # Handle a tie
             winner_text = "It's a Tie!"
         
-        screen.draw.text(winner_text, color="black",
-                         topleft=(CENTER_X - 130, 220), fontsize=60)
+        screen.draw.text(winner_text, color="white",
+                         topleft=(CENTER_X - 130, 220), fontsize=60, fontname="digital",
+                         ocolor="#FF0000", owidth=1.5)
+        
+        # [MODERN UI]: Add a "Play Again" prompt
+        screen.draw.text("Press SPACE to play again", color="white",
+                         topleft=(CENTER_X - 150, 300), fontsize=30, fontname="digital")
         
     return
 
 # Resets the dancer and arrows to default state
 def reset_dancer():
     global game_over
-    if not game_over:  #for when the game is not over
+    if not game_over:
         dancer.image = "dancer-start"
         up.image = "up"
         right.image = "right"
@@ -191,7 +217,7 @@ def update_dancer(move):
     global game_over
     if not game_over:
         # Changes images and schedules a reset after 0.5 seconds
-        if move == 0:  #if move is up, it changes to lit image of arrow, then changes dancer's position
+        if move == 0:
             up.image = "up-lit"
             dancer.image = "dancer-up"
             clock.schedule(reset_dancer, 0.5)
@@ -214,7 +240,6 @@ def display_moves():
     global move_list, display_list, dance_length
     global say_dance, show_countdown, current_move
     if display_list:
-        # Iterates through and shows each move in the sequence
         this_move = display_list[0]
         display_list = display_list[1:]
         if this_move == 0:
@@ -272,10 +297,6 @@ def next_move():
 def check_player_input(key_map, move_key, player_score):
     """
     Checks if a keypress matches the current dance move.
-    
-    :param key_map: A dictionary mapping keypresses to move indices.
-    :param move_key: The key that was pressed.
-    :param player_score: The score to increment if the move is correct.
     """
     global score, score1, game_over, move_list, current_move, rounds, winner_name
     
@@ -284,13 +305,19 @@ def check_player_input(key_map, move_key, player_score):
         update_dancer(move_index)
         
         if move_list[current_move] == move_index:
+            # [MODERN FEATURE]: Play a sound for a correct move
+            sounds.correct.play()
             if player_score == 'score':
                 score += 1
             else:
                 score1 += 1
             next_move()
         else:
+            # [MODERN FEATURE]: Play a sound for an incorrect move
+            sounds.wrong.play()
             game_over = True
+            music.stop() # Stop the music when the game ends
+            
             # Determine the winner when the game ends
             if score > score1:
                 winner_name = player1_name
@@ -299,10 +326,14 @@ def check_player_input(key_map, move_key, player_score):
             else:
                 winner_name = ""  # For a tie
             
+            # [MODERN FEATURE]: Play a sound for the winner announcement
+            sounds.win.play()
+            
 def on_key_up(key):
     global rounds
     
-    print(f"Current round: {rounds}. Player turn: {'Player 1' if rounds % 2 == 0 else 'Player 2'}")
+    if game_over:
+        return # Ignore input if the game is over
     
     # Define key maps for each player
     player1_keys = {
@@ -327,6 +358,12 @@ def on_key_up(key):
         # It's Player 2's turn
         check_player_input(player2_keys, key, 'score1')
 
+# [MODERN FEATURE]: Handle input for restarting the game
+def on_key_down(key):
+    global game_over
+    if game_over and key == keys.SPACE:
+        reset_game()
+
 # Initialize game setup and play background music
 get_player_names_gui()        
 generate_moves()
@@ -344,8 +381,7 @@ def update():
             generate_moves()
             moves_complete = False
             current_move = 0
-    else:
-        music.stop()
+    # [MODERN FEATURE]: No need to stop music here, it's done in check_player_input()
 
 # Starts the game loop
 pgzrun.go()
