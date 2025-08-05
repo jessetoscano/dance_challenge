@@ -47,14 +47,14 @@ winner_name = ""
 round_in_progress = False
 first_round = True  # New variable to control the initial countdown timer
 
-# --- Actors for Player 1 (Right Side) ---
+# --- Actors for Player 1 (Left Side) ---
 p1_dancer = Actor("dancer-start")
 p1_up = Actor("up")
 p1_right = Actor("right")
 p1_down = Actor("down")
 p1_left = Actor("left")
 
-# --- Actors for Player 2 (Left Side) ---
+# --- Actors for Player 2 (Right Side) ---
 p2_dancer = Actor("dancer-start")
 p2_up = Actor("up")
 p2_right = Actor("right")
@@ -63,19 +63,19 @@ p2_left = Actor("left")
 
 # Function to set the initial positions of all actors
 def set_actor_positions():
-    # Player 1 is permanently on the right side
-    p1_dancer.pos = CENTER_X + 250, CENTER_Y - 40
-    p1_up.pos = CENTER_X + 250, CENTER_Y + 110
-    p1_right.pos = CENTER_X + 250 + 60, CENTER_Y + 170
-    p1_down.pos = CENTER_X + 250, CENTER_Y + 230
-    p1_left.pos = CENTER_X + 250 - 60, CENTER_Y + 170
+    # Player 1 is permanently on the left side
+    p1_dancer.pos = CENTER_X - 250, CENTER_Y - 40
+    p1_up.pos = CENTER_X - 250, CENTER_Y + 110
+    p1_right.pos = CENTER_X - 250 + 60, CENTER_Y + 170
+    p1_down.pos = CENTER_X - 250, CENTER_Y + 230
+    p1_left.pos = CENTER_X - 250 - 60, CENTER_Y + 170
 
-    # Player 2 is permanently on the left side
-    p2_dancer.pos = CENTER_X - 250, CENTER_Y - 40
-    p2_up.pos = CENTER_X - 250, CENTER_Y + 110
-    p2_right.pos = CENTER_X - 250 + 60, CENTER_Y + 170
-    p2_down.pos = CENTER_X - 250, CENTER_Y + 230
-    p2_left.pos = CENTER_X - 250 - 60, CENTER_Y + 170
+    # Player 2 is permanently on the right side
+    p2_dancer.pos = CENTER_X + 250, CENTER_Y - 40
+    p2_up.pos = CENTER_X + 250, CENTER_Y + 110
+    p2_right.pos = CENTER_X + 250 + 60, CENTER_Y + 170
+    p2_down.pos = CENTER_X + 250, CENTER_Y + 230
+    p2_left.pos = CENTER_X + 250 - 60, CENTER_Y + 170
 
 # Call the function once at the beginning to set initial positions
 set_actor_positions()
@@ -185,27 +185,27 @@ def draw():
         # Draw a divider line for the split-screen
         screen.draw.line((WIDTH / 2, 0), (WIDTH / 2, HEIGHT), (255, 255, 255))
 
-        # Player 2 (Left Side)
-        p2_dancer.draw()
-        p2_up.draw()
-        p2_right.draw()
-        p2_down.draw()
-        p2_left.draw()
-        if p2_active:
-            screen.draw.text(f"{p2_name} Lives: {p2_lives}", color="white", topleft=(10, 40), fontname="digital", fontsize=30)
-        else:
-            screen.draw.text(f"{p2_name} OUT!", color="white", topleft=(10, 40), fontname="digital", fontsize=30)
-            
-        # Player 1 (Right Side)
+        # Player 1 (Left Side) - Character on the left, score on the left
         p1_dancer.draw()
         p1_up.draw()
         p1_right.draw()
         p1_down.draw()
         p1_left.draw()
         if p1_active:
-            screen.draw.text(f"{p1_name} Lives: {p1_lives}", color="yellow", topright=(WIDTH - 10, 40), fontname="digital", fontsize=30)
+            screen.draw.text(f"{p1_name} Lives: {p1_lives}", color="yellow", topleft=(10, 40), fontname="digital", fontsize=30)
         else:
-            screen.draw.text(f"{p1_name} OUT!", color="yellow", topright=(WIDTH - 10, 40), fontname="digital", fontsize=30)
+            screen.draw.text(f"{p1_name} OUT!", color="yellow", topleft=(10, 40), fontname="digital", fontsize=30)
+            
+        # Player 2 (Right Side) - Character on the right, score on the right
+        p2_dancer.draw()
+        p2_up.draw()
+        p2_right.draw()
+        p2_down.draw()
+        p2_left.draw()
+        if p2_active:
+            screen.draw.text(f"{p2_name} Lives: {p2_lives}", color="white", topright=(WIDTH - 10, 40), fontname="digital", fontsize=30)
+        else:
+            screen.draw.text(f"{p2_name} OUT!", color="white", topright=(WIDTH - 10, 40), fontname="digital", fontsize=30)
 
         # --- Shared Elements ---
         if say_dance:
@@ -384,9 +384,9 @@ def on_key_down(key):
     if not round_in_progress:
         return
         
-    # Key maps for both players
-    player1_keys = {keys.UP: 0, keys.RIGHT: 1, keys.DOWN: 2, keys.LEFT: 3}
-    player2_keys = {keys.W: 0, keys.D: 1, keys.S: 2, keys.A: 3}
+    # Swapped Key maps for both players
+    player1_keys = {keys.W: 0, keys.D: 1, keys.S: 2, keys.A: 3}
+    player2_keys = {keys.UP: 0, keys.RIGHT: 1, keys.DOWN: 2, keys.LEFT: 3}
 
     # Player 1's input
     if p1_active and not p1_round_failed and key in player1_keys:
