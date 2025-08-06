@@ -48,14 +48,14 @@ round_in_progress = False
 first_round = True  # New variable to control the initial countdown timer
 
 # --- Actors for Player 1 (Left Side) ---
-p1_dancer = Actor("dancer-start")
+p1_dancer = Actor("p1_dancer")
 p1_up = Actor("up")
 p1_right = Actor("right")
 p1_down = Actor("down")
 p1_left = Actor("left")
 
 # --- Actors for Player 2 (Right Side) ---
-p2_dancer = Actor("dancer-start")
+p2_dancer = Actor("p2_dancer")
 p2_up = Actor("up")
 p2_right = Actor("right")
 p2_down = Actor("down")
@@ -231,12 +231,12 @@ def draw():
     return
 
 def reset_dancer():
-    p1_dancer.image = "dancer-start"
+    p1_dancer.image = "p1_dancer"
     p1_up.image = "up"
     p1_right.image = "right"
     p1_down.image = "down"
     p1_left.image = "left"
-    p2_dancer.image = "dancer-start"
+    p2_dancer.image = "p2_dancer"
     p2_up.image = "up"
     p2_right.image = "right"
     p2_down.image = "down"
@@ -246,29 +246,29 @@ def update_dancer(player, move):
     if player == 1:
         if move == 0:
             p1_up.image = "up-lit"
-            p1_dancer.image = "dancer-up"
+            p1_dancer.image = "p1_dancer_up"
         elif move == 1:
             p1_right.image = "right-lit"
-            p1_dancer.image = "dancer-right"
+            p1_dancer.image = "p1_dancer_right"
         elif move == 2:
             p1_down.image = "down-lit"
-            p1_dancer.image = "dancer-down"
+            p1_dancer.image = "p1_dancer_down"
         else:
             p1_left.image = "left-lit"
-            p1_dancer.image = "dancer-left"
+            p1_dancer.image = "p1_dancer_left"
     else:
         if move == 0:
             p2_up.image = "up-lit"
-            p2_dancer.image = "dancer-up"
+            p2_dancer.image = "p2_dancer_up"
         elif move == 1:
             p2_right.image = "right-lit"
-            p2_dancer.image = "dancer-right"
+            p2_dancer.image = "p2_dancer_right"
         elif move == 2:
             p2_down.image = "down-lit"
-            p2_dancer.image = "dancer-down"
+            p2_dancer.image = "p2_dancer_down"
         else:
             p2_left.image = "left-lit"
-            p2_dancer.image = "dancer-left"
+            p2_dancer.image = "p2_dancer_left"
     
     clock.schedule(reset_dancer, 0.5)
 
