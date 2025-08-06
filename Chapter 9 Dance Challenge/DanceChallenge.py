@@ -12,6 +12,7 @@ from random import randint
 from pygame.locals import *
 import time
 from sys import exit
+import os
 
 # Screen dimensions and center coordinates
 WIDTH = 1000  # Increased width for split-screen
@@ -23,6 +24,12 @@ CENTER_Y = HEIGHT / 2
 move_list = []
 display_list = []
 dance_length = 2
+
+# --- Background GIF variables ---
+background_frames = []
+current_frame = 0
+frame_rate = 0.05 # Adjust this value to change the animation speed
+last_frame_time = time.time()
 
 # --- Player 1 State Variables ---
 p1_current_move = 0
@@ -79,6 +86,22 @@ def set_actor_positions():
 
 # Call the function once at the beginning to set initial positions
 set_actor_positions()
+
+def load_background_frames():
+    global background_frames
+    
+    # Load all frames from the new folder
+    frame_dir = "space_galaxy-frames"
+    if os.path.exists(frame_dir):
+        frame_files = sorted([f for f in os.listdir(frame_dir) if f.endswith(".png")])
+        for file in frame_files:
+            # Load the original image
+            original_image = pygame.image.load(os.path.join(frame_dir, file))
+            # Scale the image to match the screen dimensions
+            scaled_image = pygame.transform.scale(original_image, (WIDTH, HEIGHT))
+            background_frames.append(scaled_image)
+    else:
+        print("Warning: 'space_galaxy-frames' folder not found. No GIF background will be displayed.")
 
 # Resets all game variables for a new game
 def reset_game():
@@ -180,11 +203,14 @@ def draw():
     
     if not game_over:
         screen.clear()
-        screen.blit("stage", (0, 0))
+        # Draw the current GIF frame as the background
+        if background_frames:
+            screen.blit(background_frames[current_frame], (0, 0))
+        else:
+            screen.blit("stage", (0, 0))
         
-        # Draw a divider line for the split-screen
-        screen.draw.line((WIDTH / 2, 0), (WIDTH / 2, HEIGHT), (255, 255, 255))
-
+        # NOTE: The divider line has been removed here.
+        
         # Player 1 (Left Side) - Character on the left, score on the left
         p1_dancer.draw()
         p1_up.draw()
@@ -214,7 +240,10 @@ def draw():
             screen.draw.text(str(count), color="black", topleft=(CENTER_X - 8, 150), fontsize=50)
     else:
         screen.clear()
-        screen.blit("stage", (0, 0))
+        if background_frames:
+            screen.blit(background_frames[current_frame], (0, 0))
+        else:
+            screen.blit("stage", (0, 0))
         
         screen.draw.text(f"{p1_name} Lives: {p1_lives}", color="yellow",
                          topleft=(10, 40), fontname="digital", fontsize=30)
@@ -415,12 +444,15 @@ def on_key_down(key):
             check_round_end()
 
 def update():
-    # This loop runs constantly and is a good place to check for input
-    # if you want to allow for multiple keys at once, but for this game,
-    # on_key_down is sufficient.
-    pass
+    global current_frame, last_frame_time
+    # Update the GIF background frame
+    if background_frames:
+        if time.time() - last_frame_time > frame_rate:
+            current_frame = (current_frame + 1) % len(background_frames)
+            last_frame_time = time.time()
 
-# Starts the game loop
+# --- Initial Setup ---
+load_background_frames()
 get_player_names_gui()        
 generate_moves()
 music.play("vanishing-horizon")
