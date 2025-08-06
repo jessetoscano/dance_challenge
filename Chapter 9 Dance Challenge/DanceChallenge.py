@@ -415,6 +415,9 @@ def on_key_down(key):
             check_round_end()
 
 def update():
+    # This loop runs constantly and is a good place to check for input
+    # if you want to allow for multiple keys at once, but for this game,
+    # on_key_down is sufficient.
     pass
 
 # Starts the game loop
