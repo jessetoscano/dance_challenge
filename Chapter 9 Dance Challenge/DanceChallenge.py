@@ -90,18 +90,32 @@ set_actor_positions()
 def load_background_frames():
     global background_frames
     
-    # Load all frames from the new folder
-    frame_dir = "space_galaxy-frames"
+    script_dir = os.getcwd()
+    frame_dir = os.path.join(script_dir, "space_galaxy_frames")
+    
+    print(f"Checking for folder at: {frame_dir}")
+
     if os.path.exists(frame_dir):
+        print(f"Folder found. Contents: {os.listdir(frame_dir)}")
+        
         frame_files = sorted([f for f in os.listdir(frame_dir) if f.endswith(".png")])
-        for file in frame_files:
-            # Load the original image
-            original_image = pygame.image.load(os.path.join(frame_dir, file))
-            # Scale the image to match the screen dimensions
-            scaled_image = pygame.transform.scale(original_image, (WIDTH, HEIGHT))
-            background_frames.append(scaled_image)
+        
+        if not frame_files:
+            print("Warning: 'space_galaxy_frames' folder is empty or does not contain .png files.")
+        else:
+            print(f"Found {len(frame_files)} frames. Loading...")
+            for file in frame_files:
+                try:
+                    original_image = pygame.image.load(os.path.join(frame_dir, file))
+                    scaled_image = pygame.transform.scale(original_image, (WIDTH, HEIGHT))
+                    background_frames.append(scaled_image)
+                except pygame.error as e:
+                    print(f"Error loading frame '{file}': {e}")
+                    
+            if not background_frames:
+                print("Warning: No frames were successfully loaded. Check file integrity.")
     else:
-        print("Warning: 'space_galaxy-frames' folder not found. No GIF background will be displayed.")
+        print("Warning: 'space_galaxy_frames' folder not found.")
 
 # Resets all game variables for a new game
 def reset_game():
@@ -209,17 +223,20 @@ def draw():
         else:
             screen.blit("stage", (0, 0))
         
-        # NOTE: The divider line has been removed here.
-        
         # Player 1 (Left Side) - Character on the left, score on the left
         p1_dancer.draw()
         p1_up.draw()
         p1_right.draw()
         p1_down.draw()
         p1_left.draw()
-        if p1_active:
-            screen.draw.text(f"{p1_name} Lives: {p1_lives}", color="yellow", topleft=(10, 40), fontname="digital", fontsize=30)
-        else:
+        
+        # New code to draw hearts for Player 1
+        x_start_p1 = 100
+        for i in range(p1_lives):
+            heart = Actor("heart")
+            heart.pos = x_start_p1 + (i * 40), 40
+            heart.draw()
+        if not p1_active:
             screen.draw.text(f"{p1_name} OUT!", color="yellow", topleft=(10, 40), fontname="digital", fontsize=30)
             
         # Player 2 (Right Side) - Character on the right, score on the right
@@ -228,9 +245,14 @@ def draw():
         p2_right.draw()
         p2_down.draw()
         p2_left.draw()
-        if p2_active:
-            screen.draw.text(f"{p2_name} Lives: {p2_lives}", color="white", topright=(WIDTH - 10, 40), fontname="digital", fontsize=30)
-        else:
+        
+        # New code to draw hearts for Player 2
+        x_start_p2 = WIDTH - 100
+        for i in range(p2_lives):
+            heart = Actor("heart")
+            heart.pos = x_start_p2 - (i * 40), 40
+            heart.draw()
+        if not p2_active:
             screen.draw.text(f"{p2_name} OUT!", color="white", topright=(WIDTH - 10, 40), fontname="digital", fontsize=30)
 
         # --- Shared Elements ---
@@ -245,10 +267,19 @@ def draw():
         else:
             screen.blit("stage", (0, 0))
         
-        screen.draw.text(f"{p1_name} Lives: {p1_lives}", color="yellow",
-                         topleft=(10, 40), fontname="digital", fontsize=30)
-        screen.draw.text(f"{p2_name} Lives: {p2_lives}", color="white",
-                         topright=(WIDTH - 10, 40), fontname="digital", fontsize=30)
+        # Draw final score for Player 1 with hearts
+        x_start_p1 = 100
+        for i in range(p1_lives):
+            heart = Actor("heart")
+            heart.pos = x_start_p1 + (i * 40), 40
+            heart.draw()
+        
+        # Draw final score for Player 2 with hearts
+        x_start_p2 = WIDTH - 100
+        for i in range(p2_lives):
+            heart = Actor("heart")
+            heart.pos = x_start_p2 - (i * 40), 40
+            heart.draw()
         
         screen.draw.text(f"{winner_name}", color="white",
                          topleft=(CENTER_X - 130, 220), fontsize=60, fontname="digital",
