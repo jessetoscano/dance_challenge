@@ -42,3 +42,6 @@ python -m pgzero DanceChallenge.py
 🔨 Credits
 Developed by: jessetoscano and Anahi Carrasco
 
+### Contact
+
+- **Email:** jjtoscano22@gmail.com
