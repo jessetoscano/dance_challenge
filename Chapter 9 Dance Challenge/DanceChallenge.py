@@ -1,3 +1,7 @@
+# Dance Challenge Game
+# Created by Jesse Toscano and Anahi Carrasco
+# 2025
+# This game is a fun dance challenge where two players compete by mimicking dance moves.
 # -*- coding: utf-8 -*-
 import os
 # Get the absolute path to the sounds folder
