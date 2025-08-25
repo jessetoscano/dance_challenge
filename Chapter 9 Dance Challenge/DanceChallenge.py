@@ -4,8 +4,6 @@
 # This game is a fun dance challenge where two players compete by mimicking dance moves.
 # -*- coding: utf-8 -*-
 import os
-# Get the absolute path to the sounds folder
-sounds_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sounds')
 import pgzrun
 import pygame
 import pgzero
@@ -134,7 +132,6 @@ AVAILABLE_SONGS = [
     }
 ]
 
-
 # --- Actors for Player 1 (Left Side) ---
 p1_dancer = Actor("p1_dancer")
 p1_up = Actor("up")
@@ -168,6 +165,12 @@ def set_actor_positions():
 # Call the function once at the beginning to set initial positions
 set_actor_positions()
 
+# NEW: Game State Management
+GAME_STATE = "names"
+name_input_active = 1
+selected_song_index = 0
+scroll_offset = 0
+selected_option = 0
 
 # NEW: Helper function to clamp RGB values
 def clamp_color(value):
@@ -283,6 +286,7 @@ def reset_game():
     global p2_current_move, p2_lives, p2_round_failed, p2_active, p2_score, p2_combo
     global count, dance_length, say_dance, show_countdown, game_over, winner_name
     global round_in_progress, first_round, song_ended, selected_song_file, song_start_time
+    global GAME_STATE
 
     p1_current_move = 0
     p1_lives = 3
@@ -307,24 +311,20 @@ def reset_game():
     round_in_progress = False
     first_round = True
     song_ended = False
-
-    # Get the song selection and store it in the global variable
-    selected_song_file = get_song_selection()
     
-    # Play the selected song using the pgzero music module
-    if selected_song_file:
-        music.play(os.path.join(sounds_path, f"{selected_song_file}.ogg"))
-        music.set_volume(0.8)
-        song_start_time = time.time() * 1000  # Set the new song start time
-
-    generate_moves()
+    GAME_STATE = "song_select"
 
 def draw():
     global game_over, say_dance, count, show_countdown, winner_name
     global p1_lives, p2_lives, p1_active, p2_active, p1_score, p2_score, p1_combo, p2_combo, p1_combo_text, p2_combo_text
     
-    if not game_over:
-        screen.clear()
+    screen.clear()
+    
+    if GAME_STATE == "names":
+        draw_name_input_screen()
+    elif GAME_STATE == "song_select":
+        draw_song_select_screen()
+    elif GAME_STATE == "playing":
         # Draw the current GIF frame as the background
         if background_frames:
             screen.blit(background_frames[current_frame], (0, 0))
@@ -385,8 +385,7 @@ def draw():
             text_surface = pygame.font.Font(None, int(p.size)).render(p.text, True, p.color)
             text_rect = text_surface.get_rect(center=(p.x, p.y))
             screen.blit(text_surface, text_rect)
-    else:
-        # NEW: Call the new draw_game_over_screen() function here
+    elif GAME_STATE == "game_over":
         draw_game_over_screen()
     
     return
@@ -490,7 +489,7 @@ def generate_moves():
 def check_round_end():
     global game_over, p1_lives, p2_lives, p1_active, p2_active, winner_name
     global dance_length, p1_current_move, p2_current_move, round_in_progress, say_dance, p1_round_failed, p2_round_failed
-    global p1_combo, p2_combo
+    global p1_combo, p2_combo, GAME_STATE
 
     p1_complete = (p1_current_move >= dance_length)
     p2_complete = (p2_current_move >= dance_length)
@@ -521,281 +520,184 @@ def check_round_end():
             music.stop()
             winner_name = "It's a Tie!"
             sounds.win.play()
+            GAME_STATE = "game_over"
         elif not p1_active:
             game_over = True
             music.stop()
             winner_name = f"Winner is {p2_name}!"
             sounds.win.play()
+            GAME_STATE = "game_over"
         elif not p2_active:
             game_over = True
             music.stop()
             winner_name = f"Winner is {p1_name}!"
             sounds.win.play()
+            GAME_STATE = "game_over"
         else:
             dance_length += 1
             generate_moves()
             say_dance = False
             round_in_progress = False
 
-# NEW: Song Selection GUI with scrolling support
-def get_song_selection():
-    global current_theme_color, song_name, song_artist, song_duration_ms
+def draw_name_input_screen():
+    global name_input_active, p1_name, p2_name
+    
+    screen.fill((30, 30, 30))
+    
+    font = pygame.font.Font(None, 36)
+    
+    text1_surf = font.render("Player 1, enter your name:", True, (255, 255, 255))
+    screen.blit(text1_surf, (CENTER_X - 150, CENTER_Y - 80))
+    
+    input_box1 = pygame.Rect(CENTER_X - 100, CENTER_Y - 50, 200, 32)
+    color1 = pygame.Color('dodgerblue2') if name_input_active == 1 else pygame.Color('lightskyblue3')
+    pygame.draw.rect(screen.surface, color1, input_box1, 2)
+    text_surf1 = font.render(p1_name, True, (255, 255, 255))
+    screen.blit(text_surf1, (input_box1.x + 5, input_box1.y + 5))
+    
+    text2_surf = font.render("Player 2, enter your name:", True, (255, 255, 255))
+    screen.blit(text2_surf, (CENTER_X - 150, CENTER_Y + 20))
+    
+    input_box2 = pygame.Rect(CENTER_X - 100, CENTER_Y + 50, 200, 32)
+    color2 = pygame.Color('dodgerblue2') if name_input_active == 2 else pygame.Color('lightskyblue3')
+    pygame.draw.rect(screen.surface, color2, input_box2, 2)
+    text_surf2 = font.render(p2_name, True, (255, 255, 255))
+    screen.blit(text_surf2, (input_box2.x + 5, input_box2.y + 5))
 
-    # Initialize pygame for the GUI
-    pygame.init()
-    window_width = 800
-    window_height = 600
-    window = pygame.display.set_mode((window_width, window_height))
-    pygame.display.set_caption("🎵 SELECT YOUR SONG 🎵")
+def draw_song_select_screen():
+    global anim_time, current_theme_color, selected_song_index, scroll_offset
     
-    selected_index = 0
-    done = False
-    anim_time = 0
-    mouse_hover_index = -1
+    # Modern gradient background
+    anim_time = pygame.time.get_ticks() / 1000.0
+    for y in range(HEIGHT):
+        progress = y / HEIGHT
+        r = clamp_color(20 + 60 * math.sin(anim_time * 0.008 + progress * 2))
+        g = clamp_color(15 + 45 * math.cos(anim_time * 0.01 + progress * 1.5))
+        b = clamp_color(40 + 80 * math.sin(anim_time * 0.012 + progress * 3))
+        pygame.draw.line(screen.surface, (r, g, b), (0, y), (WIDTH, y))
+        
+    # Modern floating elements
+    for i in range(25):
+        x = (anim_time * 1.2 + i * 32) % (WIDTH + 80)
+        y = 60 + i * 20 + int(15 * math.sin(anim_time * 0.015 + i * 0.3))
+        
+        if i % 4 == 0:
+            size = 4 + int(3 * math.sin(anim_time * 0.02 + i))
+            color = modern_colors[i % len(modern_colors)]
+            for glow in range(3):
+                glow_size = size + glow * 2
+                pygame.draw.circle(screen.surface, color, (int(x), y), glow_size)
+        else:
+            color = modern_colors[i % len(modern_colors)]
+            pygame.draw.circle(screen.surface, color, (int(x), y), 3)
+            
+    # Modern title
+    title_font = pygame.font.Font(None, 72)
+    title_text = "SELECT YOUR SONG"
+    title_bg = pygame.Rect(50, 20, WIDTH - 100, 80)
+    title_surface = pygame.Surface((title_bg.width, title_bg.height), pygame.SRCALPHA)
+    title_surface.set_alpha(120)
+    title_surface.fill((30, 30, 50))
+    screen.blit(title_surface, title_bg)
+    pygame.draw.rect(screen.surface, current_theme_color, title_bg, 3, border_radius=20)
     
-    # Scrolling variables
-    scroll_offset = 0
-    max_visible_items = 5
+    for i, char in enumerate(title_text):
+        if char != " ":
+            offset = int(8 * math.sin(anim_time * 0.1 + i * 0.3))
+            color = modern_colors[i % len(modern_colors)]
+            char_surface = title_font.render(char, True, color)
+            char_x = 90 + i * 28
+            screen.blit(char_surface, (char_x, 45 + offset))
+
+    # Song list with scrolling support
+    list_start_y = 140
     item_height = 70
-    
-    # Initialize pygame mixer for song previews
-    pygame.mixer.init(frequency=22050, size=-16, channels=2, buffer=512)
-    pygame.mixer.music.set_volume(0.4)
-    
-    preview_start_time = 30.0
-    preview_duration = 10000
-    hover_delay = 500
-    hover_timer = 0
-    pending_preview_index = -1
-    
-    clock = pygame.time.Clock()
-    
-    while not done:
-        dt = clock.tick(60)
-        mouse_pos = pygame.mouse.get_pos()
+    max_visible_items = 5
+    for i in range(scroll_offset, min(scroll_offset + max_visible_items, len(AVAILABLE_SONGS))):
+        song = AVAILABLE_SONGS[i]
+        display_index = i - scroll_offset
+        y_pos = list_start_y + display_index * item_height
         
-        # Calculate scroll boundaries
-        total_songs = len(AVAILABLE_SONGS)
-        max_scroll = max(0, total_songs - max_visible_items)
+        song_rect = pygame.Rect(60, y_pos - 5, WIDTH - 120, item_height - 10)
+        is_selected = (i == selected_song_index)
         
-        # Handle events
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.mixer.music.stop()
-                pygame.quit()
-                exit()
-            
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP:
-                    selected_index = (selected_index - 1) % len(AVAILABLE_SONGS)
-                    current_theme_color = choice(modern_colors)
-                    if selected_index < scroll_offset:
-                        scroll_offset = selected_index
-                    elif selected_index >= scroll_offset + max_visible_items:
-                        scroll_offset = selected_index - max_visible_items + 1
-                    pygame.mixer.music.stop()
-                    
-                elif event.key == pygame.K_DOWN:
-                    selected_index = (selected_index + 1) % len(AVAILABLE_SONGS)
-                    current_theme_color = choice(modern_colors)
-                    if selected_index >= scroll_offset + max_visible_items:
-                        scroll_offset = min(max_scroll, selected_index - max_visible_items + 1)
-                    elif selected_index < scroll_offset:
-                        scroll_offset = selected_index
-                    pygame.mixer.music.stop()
-                    
-                elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
-                    selected_song_info = AVAILABLE_SONGS[selected_index]
-                    selected_song_file = selected_song_info["file"]
-                    song_name = selected_song_info["title"]
-                    song_artist = selected_song_info["artist"]
-                    
-                    try:
-                        music_file_path = f"sounds/{selected_song_file}.ogg"
-                        music_sound = pygame.mixer.Sound(music_file_path)
-                        song_duration_ms = music_sound.get_length() * 1000
-                    except (pygame.error, FileNotFoundError) as e:
-                        print(f"❌ Could not load song '{selected_song_file}': {e}")
-                        print(f"Make sure the file exists at: {music_file_path}")
-                        song_duration_ms = 60000 # Default to 1 minute if not found
-                    
-                    pygame.mixer.music.stop()
-                    done = True
-                    
-                elif event.key == pygame.K_ESCAPE:
-                    pygame.mixer.music.stop()
-                    pygame.quit()
-                    exit()
-                    
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:
-                    list_start_y = 140
-                    for i in range(scroll_offset, min(scroll_offset + max_visible_items, len(AVAILABLE_SONGS))):
-                        display_index = i - scroll_offset
-                        y_pos = list_start_y + display_index * item_height
-                        song_rect = pygame.Rect(60, y_pos - 5, window_width - 120, item_height - 10)
-                        if song_rect.collidepoint(mouse_pos):
-                            selected_song_info = AVAILABLE_SONGS[i]
-                            selected_song_file = selected_song_info["file"]
-                            song_name = selected_song_info["name"]
-                            song_artist = selected_song_info["artist"]
-                            
-                            try:
-                                music_file_path = f"sounds/{selected_song_file}.ogg"
-                                music_sound = pygame.mixer.Sound(music_file_path)
-                                song_duration_ms = music_sound.get_length() * 1000
-                            except (pygame.error, FileNotFoundError) as e:
-                                print(f"❌ Could not load song '{selected_song_file}': {e}")
-                                print(f"Make sure the file exists at: {music_file_path}")
-                                song_duration_ms = 60000
-                                
-                            pygame.mixer.music.stop()
-                            done = True
-                            break
-                
-                elif event.button == 4:
-                    scroll_offset = max(0, scroll_offset - 1)
-                elif event.button == 5:
-                    scroll_offset = min(max_scroll, scroll_offset + 1)
-        
-        # Drawing code (from friend's code)
-        window.fill((0, 0, 0)) # Clear the window before drawing
+        if is_selected:
+            glow_intensity = int(100 + 50 * math.sin(anim_time * 0.15))
+            glow_color = current_theme_color
+            for glow in range(5):
+                glow_rect = pygame.Rect(song_rect.x - glow * 3, song_rect.y - glow * 2,
+                                        song_rect.width + glow * 6, song_rect.height + glow * 4)
+                glow_surface = pygame.Surface((glow_rect.width, glow_rect.height), pygame.SRCALPHA)
+                glow_surface.set_alpha(max(20, glow_intensity - glow * 20))
+                glow_surface.fill(glow_color)
+                screen.blit(glow_surface, glow_rect)
 
-        # Modern gradient background
-        for y in range(window_height):
-            progress = y / window_height
-            r = clamp_color(20 + 60 * math.sin(anim_time * 0.008 + progress * 2))
-            g = clamp_color(15 + 45 * math.cos(anim_time * 0.01 + progress * 1.5))
-            b = clamp_color(40 + 80 * math.sin(anim_time * 0.012 + progress * 3))
-            pygame.draw.line(window, (r, g, b), (0, y), (window_width, y))
-        
-        # Modern floating elements
-        for i in range(25):
-            x = (anim_time * 1.2 + i * 32) % (window_width + 80)
-            y = 60 + i * 20 + int(15 * math.sin(anim_time * 0.015 + i * 0.3))
+            selection_surface = pygame.Surface((song_rect.width, song_rect.height), pygame.SRCALPHA)
+            selection_surface.set_alpha(150)
+            selection_surface.fill((40, 40, 70))
+            screen.blit(selection_surface, song_rect)
+            pygame.draw.rect(screen.surface, glow_color, song_rect, 3, border_radius=20)
             
-            if i % 4 == 0:
-                size = 4 + int(3 * math.sin(anim_time * 0.02 + i))
-                color = modern_colors[i % len(modern_colors)]
-                for glow in range(3):
-                    glow_size = size + glow * 2
-                    pygame.draw.circle(window, color, (int(x), y), glow_size)
-            else:
-                color = modern_colors[i % len(modern_colors)]
-                pygame.draw.circle(window, color, (int(x), y), 3)
+        name_font = pygame.font.Font(None, 38)
+        artist_font = pygame.font.Font(None, 26)
+        difficulty_font = pygame.font.Font(None, 30)
+        
+        name_color = (255, 255, 255) if is_selected else (200, 200, 220)
+        artist_color = (180, 180, 255) if is_selected else (140, 140, 160)
+        difficulty_color = current_theme_color if is_selected else (180, 180, 100)
+        
+        name_surface = name_font.render(f"♪ {song['title']}", True, name_color)
+        screen.blit(name_surface, (80, y_pos))
+        
+        artist_surface = artist_font.render(f"by {song['artist']}", True, artist_color)
+        screen.blit(artist_surface, (80, y_pos + 30))
+        
+        difficulty_surface = difficulty_font.render(song['difficulty'], True, difficulty_color)
+        screen.blit(difficulty_surface, (WIDTH - 180, y_pos + 15))
 
-        # Modern title
-        title_font = pygame.font.Font(None, 72)
-        title_text = "SELECT YOUR SONG"
-        title_bg = pygame.Rect(50, 20, window_width - 100, 80)
-        title_surface = pygame.Surface((title_bg.width, title_bg.height))
-        title_surface.set_alpha(120)
-        title_surface.fill((30, 30, 50))
-        window.blit(title_surface, title_bg)
-        pygame.draw.rect(window, current_theme_color, title_bg, 3, border_radius=20)
-        
-        for i, char in enumerate(title_text):
-            if char != " ":
-                offset = int(8 * math.sin(anim_time * 0.1 + i * 0.3))
-                color = modern_colors[i % len(modern_colors)]
-                char_surface = title_font.render(char, True, color)
-                char_x = 90 + i * 28
-                window.blit(char_surface, (char_x, 45 + offset))
-
-        # Song list with scrolling support
-        list_start_y = 140
-        for i in range(scroll_offset, min(scroll_offset + max_visible_items, len(AVAILABLE_SONGS))):
-            song = AVAILABLE_SONGS[i]
-            display_index = i - scroll_offset
-            y_pos = list_start_y + display_index * item_height
-            
-            song_rect = pygame.Rect(60, y_pos - 5, window_width - 120, item_height - 10)
-            is_selected = (i == selected_index)
-            
-            if is_selected:
-                glow_intensity = int(100 + 50 * math.sin(anim_time * 0.15))
-                glow_color = current_theme_color
-                for glow in range(5):
-                    glow_rect = pygame.Rect(song_rect.x - glow * 3, song_rect.y - glow * 2,
-                                             song_rect.width + glow * 6, song_rect.height + glow * 4)
-                    glow_surface = pygame.Surface((glow_rect.width, glow_rect.height))
-                    glow_surface.set_alpha(max(20, glow_intensity - glow * 20))
-                    glow_surface.fill(glow_color)
-                    window.blit(glow_surface, glow_rect)
-
-                selection_surface = pygame.Surface((song_rect.width, song_rect.height))
-                selection_surface.set_alpha(150)
-                selection_surface.fill((40, 40, 70))
-                window.blit(selection_surface, song_rect)
-                pygame.draw.rect(window, glow_color, song_rect, 3, border_radius=20)
-                
-            name_font = pygame.font.Font(None, 38)
-            artist_font = pygame.font.Font(None, 26)
-            difficulty_font = pygame.font.Font(None, 30)
-            
-            name_color = (255, 255, 255) if is_selected else (200, 200, 220)
-            artist_color = (180, 180, 255) if is_selected else (140, 140, 160)
-            difficulty_color = current_theme_color if is_selected else (180, 180, 100)
-            
-            name_surface = name_font.render(f"♪ {song['title']}", True, name_color)
-            window.blit(name_surface, (80, y_pos))
-            
-            artist_surface = artist_font.render(f"by {song['artist']}", True, artist_color)
-            window.blit(artist_surface, (80, y_pos + 30))
-            
-            difficulty_surface = difficulty_font.render(song['difficulty'], True, difficulty_color)
-            window.blit(difficulty_surface, (window_width - 180, y_pos + 15))
-        
-        # Instructions
-        instruction_panel = pygame.Rect(50, window_height - 80, window_width - 100, 60)
-        panel_surface = pygame.Surface((instruction_panel.width, instruction_panel.height))
-        panel_surface.set_alpha(100)
-        panel_surface.fill((20, 20, 40))
-        window.blit(panel_surface, instruction_panel)
-        pygame.draw.rect(window, current_theme_color, instruction_panel, 2, border_radius=15)
-        
-        instruction_font = pygame.font.Font(None, 24)
-        instructions = [
-            "Use ↑ and ↓ to navigate and ENTER to select.",
-            "Press ESC to exit."
-        ]
-        
-        for i, instruction in enumerate(instructions):
-            text = instruction_font.render(instruction, True, (220, 220, 255))
-            window.blit(text, (70, window_height - 70 + i * 25))
-            
-        anim_time += 1
-        pygame.display.flip()
+    # Instructions
+    instruction_panel = pygame.Rect(50, HEIGHT - 80, WIDTH - 100, 60)
+    panel_surface = pygame.Surface((instruction_panel.width, instruction_panel.height), pygame.SRCALPHA)
+    panel_surface.set_alpha(100)
+    panel_surface.fill((20, 20, 40))
+    screen.blit(panel_surface, instruction_panel)
+    pygame.draw.rect(screen.surface, current_theme_color, instruction_panel, 2, border_radius=15)
     
-    return selected_song_file
-
-# NEW: Game Over Menu
-import pygame
+    instruction_font = pygame.font.Font(None, 24)
+    instructions = [
+        "Use ↑ and ↓ to navigate and ENTER to select.",
+        "Press ESC to exit."
+    ]
+    
+    for i, instruction in enumerate(instructions):
+        text = instruction_font.render(instruction, True, (220, 220, 255))
+        screen.blit(text, (70, HEIGHT - 70 + i * 25))
 
 def draw_game_over_screen():
-    global current_theme_color, winner_name, anim_time, selected_option
+    global current_theme_color, winner_name, selected_option
+    
+    anim_time = pygame.time.get_ticks() / 1000.0
     
     # Game Over Title
     title_font = pygame.font.Font(None, 88)
     title_text = "GAME OVER"
     title_bg = pygame.Rect(100, 50, WIDTH - 200, 100)
-    title_surface = pygame.Surface((title_bg.width, title_bg.height))
+    title_surface = pygame.Surface((title_bg.width, title_bg.height), pygame.SRCALPHA)
     title_surface.set_alpha(120)
     title_surface.fill((30, 30, 50))
     screen.blit(title_surface, title_bg)
-    pygame.draw.rect(screen, current_theme_color, title_bg, 4, border_radius=25)
+    pygame.draw.rect(screen.surface, current_theme_color, title_bg, 4, border_radius=25)
     
     # Final Scores Display
     scores_bg = pygame.Rect(150, 180, WIDTH - 300, 140)
-    scores_surface = pygame.Surface((scores_bg.width, scores_bg.height))
+    scores_surface = pygame.Surface((scores_bg.width, scores_bg.height), pygame.SRCALPHA)
     scores_surface.set_alpha(130)
     scores_surface.fill((25, 25, 45))
     screen.blit(scores_surface, scores_bg)
-    pygame.draw.rect(screen, current_theme_color, scores_bg, 3, border_radius=20)
+    pygame.draw.rect(screen.surface, current_theme_color, scores_bg, 3, border_radius=20)
     
     # Display final scores
     score_font = pygame.font.Font(None, 36)
-    winner_font = pygame.font.Font(None, 42)
     
     player1_text = score_font.render(f"🕺 {p1_name}: {p1_score}", True, (255, 100, 150))
     player2_text = score_font.render(f"💃 {p2_name}: {p2_score}", True, (100, 150, 255))
@@ -828,65 +730,120 @@ def draw_game_over_screen():
         glow_intensity = int(120 + 40 * math.sin(anim_time * 0.2))
         for glow in range(4):
             glow_rect = pygame.Rect(play_again_bg.x - glow * 3, play_again_bg.y - glow * 2,
-                                     play_again_bg.width + glow * 6, play_again_bg.height + glow * 4)
-            glow_surface = pygame.Surface((glow_rect.width, glow_rect.height))
+                                    play_again_bg.width + glow * 6, play_again_bg.height + glow * 4)
+            glow_surface = pygame.Surface((glow_rect.width, glow_rect.height), pygame.SRCALPHA)
             glow_surface.set_alpha(max(30, glow_intensity - glow * 25))
             glow_surface.fill((100, 255, 100))
             screen.blit(glow_surface, glow_rect)
         
-        button_surface = pygame.Surface((play_again_bg.width, play_again_bg.height))
+        button_surface = pygame.Surface((play_again_bg.width, play_again_bg.height), pygame.SRCALPHA)
         button_surface.set_alpha(150)
         button_surface.fill((40, 70, 40))
         screen.blit(button_surface, play_again_bg)
-        pygame.draw.rect(screen, (100, 255, 100), play_again_bg, 3, border_radius=20)
+        pygame.draw.rect(screen.surface, (100, 255, 100), play_again_bg, 3, border_radius=20)
         button_color = (255, 255, 255)
     else:
-        button_surface = pygame.Surface((play_again_bg.width, play_again_bg.height))
+        button_surface = pygame.Surface((play_again_bg.width, play_again_bg.height), pygame.SRCALPHA)
         button_surface.set_alpha(100)
         button_surface.fill((40, 40, 60))
         screen.blit(button_surface, play_again_bg)
-        pygame.draw.rect(screen, (120, 120, 140), play_again_bg, 2, border_radius=20)
+        pygame.draw.rect(screen.surface, (120, 120, 140), play_again_bg, 2, border_radius=20)
         button_color = (200, 200, 220)
     
     play_text = button_font.render("🔄 PLAY AGAIN", True, button_color)
     play_rect = play_text.get_rect(center=(play_again_bg.centerx, play_again_bg.centery))
     screen.blit(play_text, play_rect)
-    
+
     # Quit button
     quit_bg = pygame.Rect(450, 350, 200, 60)
     if selected_option == 1:
         glow_intensity = int(120 + 40 * math.sin(anim_time * 0.2))
         for glow in range(4):
             glow_rect = pygame.Rect(quit_bg.x - glow * 3, quit_bg.y - glow * 2,
-                                     quit_bg.width + glow * 6, quit_bg.height + glow * 4)
-            glow_surface = pygame.Surface((glow_rect.width, glow_rect.height))
+                                    quit_bg.width + glow * 6, quit_bg.height + glow * 4)
+            glow_surface = pygame.Surface((glow_rect.width, glow_rect.height), pygame.SRCALPHA)
             glow_surface.set_alpha(max(30, glow_intensity - glow * 25))
             glow_surface.fill((255, 100, 100))
             screen.blit(glow_surface, glow_rect)
         
-        button_surface = pygame.Surface((quit_bg.width, quit_bg.height))
+        button_surface = pygame.Surface((quit_bg.width, quit_bg.height), pygame.SRCALPHA)
         button_surface.set_alpha(150)
         button_surface.fill((70, 40, 40))
         screen.blit(button_surface, quit_bg)
-        pygame.draw.rect(screen, (255, 100, 100), quit_bg, 3, border_radius=20)
+        pygame.draw.rect(screen.surface, (255, 100, 100), quit_bg, 3, border_radius=20)
         button_color = (255, 255, 255)
     else:
-        button_surface = pygame.Surface((quit_bg.width, quit_bg.height))
+        button_surface = pygame.Surface((quit_bg.width, quit_bg.height), pygame.SRCALPHA)
         button_surface.set_alpha(100)
         button_surface.fill((40, 40, 60))
         screen.blit(button_surface, quit_bg)
-        pygame.draw.rect(screen, (120, 120, 140), quit_bg, 2, border_radius=20)
+        pygame.draw.rect(screen.surface, (120, 120, 140), quit_bg, 2, border_radius=20)
         button_color = (200, 200, 220)
         
     quit_text = button_font.render("❌ QUIT", True, button_color)
     quit_rect = quit_text.get_rect(center=(quit_bg.centerx, quit_bg.centery))
     screen.blit(quit_text, quit_rect)
-    
+
 def on_key_down(key):
     global game_over, p1_current_move, p2_current_move, round_in_progress, p1_round_failed, p2_round_failed
-    global p1_score, p2_score, p1_combo, p2_combo, selected_option
+    global p1_score, p2_score, p1_combo, p2_combo, selected_option, GAME_STATE
+    global p1_name, p2_name, name_input_active, selected_song_index, scroll_offset
 
-    if game_over and song_ended:
+    # --- Step 1: Handle player name input ---
+    if GAME_STATE == "names":
+        if key == keys.RETURN:
+            if name_input_active == 1:
+                name_input_active = 2
+            elif name_input_active == 2:
+                GAME_STATE = "song_select"
+                # Initialize pygame mixer for song previews
+                pygame.mixer.init(frequency=22050, size=-16, channels=2, buffer=512)
+                pygame.mixer.music.set_volume(0.4)
+            return
+        
+        if key == keys.BACKSPACE:
+            if name_input_active == 1:
+                p1_name = p1_name[:-1]
+            elif name_input_active == 2:
+                p2_name = p2_name[:-1]
+            return
+            
+        # Add characters to the name
+        if key >= keys.A and key <= keys.Z or key >= keys.K_0 and key <= keys.K_9 or key == keys.SPACE:
+            char = ""
+            if key >= keys.A and key <= keys.Z:
+                char = chr(key)
+            elif key >= keys.K_0 and key <= keys.K_9:
+                char = chr(key - keys.K_0 + ord('0'))
+            elif key == keys.SPACE:
+                char = " "
+                
+            if name_input_active == 1 and len(p1_name) < 10:
+                p1_name += char
+            elif name_input_active == 2 and len(p2_name) < 10:
+                p2_name += char
+        return
+    
+    # --- Step 2: Handle game logic based on other states ---
+    
+    if GAME_STATE == "song_select":
+        max_visible_items = 5
+        max_scroll = max(0, len(AVAILABLE_SONGS) - max_visible_items)
+        if key == keys.UP:
+            selected_song_index = (selected_song_index - 1) % len(AVAILABLE_SONGS)
+            if selected_song_index < scroll_offset:
+                scroll_offset = selected_song_index
+            pygame.mixer.music.stop()
+        elif key == keys.DOWN:
+            selected_song_index = (selected_song_index + 1) % len(AVAILABLE_SONGS)
+            if selected_song_index >= scroll_offset + max_visible_items:
+                scroll_offset = min(max_scroll, selected_song_index - max_visible_items + 1)
+            pygame.mixer.music.stop()
+        elif key == keys.RETURN:
+            start_game()
+        return
+
+    if GAME_STATE == "game_over":
         if key == keys.UP or key == keys.LEFT:
             selected_option = 0
         elif key == keys.DOWN or key == keys.RIGHT:
@@ -898,6 +855,7 @@ def on_key_down(key):
                 exit()
         return
 
+    # Check if a round is in progress
     if not round_in_progress:
         return
         
@@ -938,112 +896,78 @@ def on_key_down(key):
                 p2_combo = 0 # Reset combo
             check_round_end()
 
+def on_mouse_button_down(pos, button):
+    global name_input_active, GAME_STATE
+    if GAME_STATE == "names":
+        input_box1 = pygame.Rect(CENTER_X - 100, CENTER_Y - 50, 200, 32)
+        input_box2 = pygame.Rect(CENTER_X - 100, CENTER_Y + 50, 200, 32)
+        
+        if input_box1.collidepoint(pos):
+            name_input_active = 1
+        elif input_box2.collidepoint(pos):
+            name_input_active = 2
+        else:
+            name_input_active = 0
+        
+def start_game():
+    global GAME_STATE, selected_song_file, song_name, song_artist, song_duration_ms, song_start_time
+    
+    selected_song_info = AVAILABLE_SONGS[selected_song_index]
+    selected_song_file = selected_song_info["file"]
+    song_name = selected_song_info["title"]
+    song_artist = selected_song_info["artist"]
+
+    try:
+        music_file_path = f"sounds/{selected_song_file}.ogg"
+        music_sound = pygame.mixer.Sound(music_file_path)
+        song_duration_ms = music_sound.get_length() * 1000
+    except (pygame.error, FileNotFoundError) as e:
+        print(f"❌ Could not load song '{selected_song_file}': {e}")
+        print(f"Make sure the file exists at: {music_file_path}")
+        song_duration_ms = 60000 # Default to 1 minute if not found
+    
+    pygame.mixer.music.stop()
+    music.play(os.path.join(os.getcwd(), f"sounds/{selected_song_file}.ogg"))
+    music.set_volume(0.8)
+    song_start_time = time.time() * 1000
+    
+    GAME_STATE = "playing"
+    generate_moves()
+
 def update():
-    global current_frame, last_frame_time, game_over, song_ended, winner_name
+    global current_frame, last_frame_time, song_ended, winner_name, GAME_STATE
     global song_duration_ms, song_start_time
 
-    # Update the GIF background frame
-    if background_frames:
-        if time.time() - last_frame_time > frame_rate:
-            current_frame = (current_frame + 1) % len(background_frames)
-            last_frame_time = time.time()
-            
-    # Update particles
-    for p in particles:
-        p.update()
-    
-    # Update score particles
-    for p in score_particles:
-        p.update()
-    score_particles[:] = [p for p in score_particles if p.life > 0] # Remove dead particles
-
-    # Check if the song has ended
-    if not game_over and time.time() * 1000 - song_start_time > song_duration_ms:
-        game_over = True
-        song_ended = True
-        music.stop()
-        sounds.win.play()
-        if p1_score > p2_score:
-            winner_name = f"Winner is {p1_name}!"
-        elif p2_score > p1_score:
-            winner_name = f"Winner is {p2_name}!"
-        else:
-            winner_name = "It's a Tie!"
-        
-    # If the game is over, show the game over menu and handle its result
-    if game_over and song_ended:
-        result = show_game_over_menu()
-        if result == "play_again":
-            reset_game()
-        elif result == "quit":
-            exit()
+    if GAME_STATE == "playing":
+        # Update the GIF background frame
+        if background_frames:
+            if time.time() - last_frame_time > frame_rate:
+                current_frame = (current_frame + 1) % len(background_frames)
+                last_frame_time = time.time()
                 
-def get_player_names_gui():
-    global p1_name, p2_name
-    
-    window_width = 800
-    window_height = 600
-    window = pygame.display.set_mode((window_width, window_height))
-    pygame.display.set_caption("Enter Player Names:")
-    
-    input_box1 = pygame.Rect(window_width // 2 - 100, window_height // 2 - 50, 200, 32)
-    input_box2 = pygame.Rect(window_width // 2 - 100, window_height // 2 + 50, 200, 32)
-    color_inactive = pygame.Color('lightskyblue3')
-    color_active = pygame.Color('dodgerblue2')
-    color1 = color_inactive
-    color2 = color_inactive
-    active1 = False
-    active2 = False
-    done = False
-    
-    while not done:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if input_box1.collidepoint(event.pos):
-                    active1 = not active1
-                else:
-                    active1 = False
-                if input_box2.collidepoint(event.pos):
-                    active2 = not active2
-                else:
-                    active2 = False
-                color1 = color_active if active1 else color_inactive
-                color2 = color_active if active2 else color_inactive
-            if event.type == pygame.KEYDOWN:
-                if active1:
-                    if event.key == pygame.K_RETURN:
-                        active1 = False
-                    elif event.key == pygame.K_BACKSPACE:
-                        p1_name = p1_name[:-1]
-                    else:
-                        p1_name += event.unicode
-                if active2:
-                    if event.key == pygame.K_RETURN:
-                        done = True
-                    elif event.key == pygame.K_BACKSPACE:
-                        p2_name = p2_name[:-1]
-                    else:
-                        p2_name += event.unicode
+        # Update particles
+        for p in particles:
+            p.update()
         
-        window.fill((30, 30, 30))
-        font = pygame.font.Font(None, 36)
-        text1 = font.render("Player 1, enter your name:", True, (255, 255, 255))
-        text2 = font.render("Player 2, enter your name:", True, (255, 255, 255))
-        window.blit(text1, (window_width // 2 - 150, window_height // 2 - 80))
-        window.blit(text2, (window_width // 2 - 150, window_height // 2 + 20))
-        pygame.draw.rect(window, color1, input_box1, 2)
-        pygame.draw.rect(window, color2, input_box2, 2)
-        text_surface1 = font.render(p1_name, True, (255, 255, 255))
-        text_surface2 = font.render(p2_name, True, (255, 255, 255))
-        window.blit(text_surface1, (input_box1.x + 5, input_box1.y + 5))
-        window.blit(text_surface2, (input_box2.x + 5, input_box2.y + 5))
-        pygame.display.flip()
+        # Update score particles
+        for p in score_particles:
+            p.update()
+        score_particles[:] = [p for p in score_particles if p.life > 0] # Remove dead particles
 
+        # Check if the song has ended
+        if time.time() * 1000 - song_start_time > song_duration_ms:
+            song_ended = True
+            music.stop()
+            sounds.win.play()
+            if p1_score > p2_score:
+                winner_name = f"Winner is {p1_name}!"
+            elif p2_score > p1_score:
+                winner_name = f"Winner is {p2_name}!"
+            else:
+                winner_name = "It's a Tie!"
+            
+            GAME_STATE = "game_over"
+            
 # --- Initial Setup ---
 load_background_frames()
-get_player_names_gui()
-reset_game()
 pgzrun.go()
