@@ -26,7 +26,7 @@ Clone the repository:
 
 Bash
 
-git clone https://github.com/your-username/dance-challenge.git
+git clone https://github.com/jessetoscano/dance-challenge.git
 cd dance-challenge
 Install dependencies:
 
